@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Báo cáo bài tập React CRUD</title>
+  <style>
+    body { font-family: system-ui, Arial, sans-serif; max-width: 900px; margin: 0 auto; padding: 24px 16px 60px; line-height: 1.6; color: #222; background: #fff; }
+    h1 { font-size: 26px; } h2 { margin-top: 36px; border-bottom: 2px solid #1a73e8; padding-bottom: 4px; }
+    table { border-collapse: collapse; width: 100%; margin: 12px 0; font-size: 14px; }
+    th, td { border: 1px solid #ccc; padding: 8px; text-align: left; vertical-align: top; }
+    th { background: #e9eef3; }
+    code, pre { background: #f3f4f6; border-radius: 4px; font-family: Consolas, monospace; font-size: 13px; }
+    code { padding: 1px 4px; } pre { padding: 10px; overflow-x: auto; }
+    .err { background: #fdecea; border-left: 4px solid #c0392b; padding: 8px 12px; }
+    .ok { background: #e8f5e9; border-left: 4px solid #2e7d32; padding: 8px 12px; }
+    svg { max-width: 100%; height: auto; }
+    svg text { font-family: system-ui, Arial, sans-serif; }
+  </style>
+</head>
+<body>
+  <h1>Báo cáo bài tập React CRUD</h1>
+  <p>Ứng dụng quản lý người dùng: tìm kiếm, thêm, sửa, xóa. Dữ liệu ban đầu lấy từ
+    <code>https://jsonplaceholder.typicode.com/users</code>. Thêm/sửa/xóa chỉ thay đổi state trên trình duyệt (API này không lưu thật).</p>
+  <p><b>Link trang kết quả:</b> <span id="app-link">[điền link sau khi deploy]</span></p>
+
+  <h2>1. Sơ đồ Component (Component Tree)</h2>
+  <svg viewBox="0 0 760 330" role="img" aria-label="Cây component">
+    <defs><marker id="a" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 z" fill="#555"/></marker></defs>
+    <g stroke="#555" stroke-width="1.5" fill="none" marker-end="url(#a)">
+      <line x1="380" y1="62" x2="130" y2="128"/><line x1="380" y1="62" x2="320" y2="128"/><line x1="380" y1="62" x2="620" y2="128"/>
+      <line x1="620" y1="172" x2="620" y2="228"/>
+    </g>
+    <g stroke="#1a73e8" stroke-width="2" fill="#e8f0fe">
+      <rect x="290" y="18" width="180" height="44" rx="8"/>
+      <rect x="40" y="128" width="180" height="44" rx="8"/>
+      <rect x="230" y="128" width="180" height="44" rx="8"/>
+      <rect x="530" y="128" width="180" height="44" rx="8"/>
+    </g>
+    <rect x="530" y="228" width="180" height="44" rx="8" fill="#fff" stroke="#888" stroke-width="1.5" stroke-dasharray="5 4"/>
+    <g font-size="15" text-anchor="middle" fill="#222">
+      <text x="380" y="46" font-weight="700">App</text>
+      <text x="130" y="146" font-weight="700">SearchForm</text><text x="130" y="164" font-size="12">&lt;input&gt; tìm kiếm</text>
+      <text x="320" y="146" font-weight="700">AddUser</text><text x="320" y="164" font-size="12">nút Thêm + modal form</text>
+      <text x="620" y="146" font-weight="700">ResultTable</text><text x="620" y="164" font-size="12">bảng + lọc</text>
+      <text x="620" y="246" font-weight="700">Modal Sửa</text><text x="620" y="264" font-size="12">hiện khi editing != null</text>
+    </g>
+    <text x="380" y="310" font-size="12" text-anchor="middle" fill="#555">Ô nét đứt: khối JSX nằm trong ResultTable, không phải component riêng.</text>
+  </svg>
+  <p><code>App</code> là gốc, có 3 con trực tiếp: <code>SearchForm</code>, <code>AddUser</code>, <code>ResultTable</code>.
+    Các component con không gọi lẫn nhau.</p>
+
+  <h2>2. Luồng dữ liệu và State Lifting</h2>
+  <svg viewBox="0 0 760 330" role="img" aria-label="Luồng dữ liệu">
+    <defs><marker id="b" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 z" fill="#c2410c"/></marker>
+      <marker id="c" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 z" fill="#1a73e8"/></marker></defs>
+    <rect x="250" y="130" width="260" height="80" rx="10" fill="#e8f0fe" stroke="#1a73e8" stroke-width="2"/>
+    <g text-anchor="middle" fill="#222">
+      <text x="380" y="158" font-size="16" font-weight="700">App</text>
+      <text x="380" y="180" font-size="13">kw (từ khóa)</text>
+      <text x="380" y="198" font-size="13">newUser (người dùng mới)</text>
+    </g>
+    <g fill="#fff" stroke="#888" stroke-width="1.5">
+      <rect x="20" y="20" width="170" height="50" rx="8"/><rect x="20" y="260" width="170" height="50" rx="8"/><rect x="570" y="130" width="170" height="80" rx="8"/>
+    </g>
+    <g text-anchor="middle" font-size="14" font-weight="700" fill="#222">
+      <text x="105" y="50">SearchForm</text><text x="105" y="290">AddUser</text><text x="655" y="176">ResultTable</text>
+    </g>
+    <g stroke="#c2410c" stroke-width="2" fill="none" marker-end="url(#b)">
+      <path d="M150,70 L290,130"/><path d="M150,260 L290,210"/>
+    </g>
+    <g stroke="#1a73e8" stroke-width="2" fill="none" marker-end="url(#c)"><path d="M510,170 L568,170"/></g>
+    <g font-size="12" fill="#c2410c"><text x="30" y="108">onChangeValue(text)</text><text x="30" y="238">onAdd(user)</text></g>
+    <g font-size="12" fill="#1a73e8" text-anchor="middle"><text x="540" y="156">keyword, user</text><text x="540" y="192">onAdded</text></g>
+    <text x="380" y="325" font-size="12" text-anchor="middle" fill="#555">Cam: con gọi hàm cập nhật state lên App. Xanh: App truyền state xuống bằng props.</text>
+  </svg>
+  <p>Luồng đi theo hai đường:</p>
+  <ul>
+    <li><b>Tìm kiếm:</b> SearchForm → <code>onChangeValue</code> (chính là <code>setKeyword</code>) → App cập nhật <code>kw</code> → App truyền <code>keyword</code> cho ResultTable → ResultTable lọc bằng <code>filter()</code>.</li>
+    <li><b>Thêm:</b> AddUser → <code>onAdd</code> (chính là <code>setNewUser</code>) → App giữ <code>newUser</code> → truyền <code>user</code> xuống ResultTable → <code>useEffect([user])</code> thêm vào danh sách rồi gọi <code>onAdded()</code> để App đặt <code>newUser</code> về <code>null</code>.</li>
+  </ul>
+
+  <h3>Vì sao <code>kw</code> và <code>newUser</code> đặt ở App, không đặt ở SearchForm hay AddUser?</h3>
+  <p>Trong React dữ liệu chỉ chảy một chiều, từ cha xuống con qua props. Hai component anh em (SearchForm, ResultTable) không có cách nào truyền dữ liệu trực tiếp cho nhau.</p>
+  <ul>
+    <li><code>kw</code> do SearchForm tạo ra (người dùng gõ) nhưng ResultTable cần dùng để lọc. Nếu để <code>kw</code> trong SearchForm, ResultTable không đọc được. Đưa <code>kw</code> lên App (cha chung gần nhất) thì App truyền được cho cả hai.</li>
+    <li><code>newUser</code> do AddUser tạo ra nhưng ResultTable cần để thêm vào bảng. Lý do giống hệt: hai component là anh em, phải nhờ cha trung chuyển.</li>
+    <li>Lên cha chung gần nhất là đủ; đặt cao hơn App thì thừa, đặt thấp hơn thì con kia không thấy.</li>
+    <li>Nhờ vậy có một nguồn dữ liệu duy nhất (single source of truth). SearchForm và AddUser chỉ lo giao diện nhập liệu, dễ tái sử dụng. ResultTable chỉ nhận props rồi hiển thị.</li>
+    <li>Ghi chú: danh sách <code>users</code> thì chỉ ResultTable dùng nên để trong ResultTable, không cần nâng lên.</li>
+  </ul>
+
+  <h2>3. Bảng Props truyền từ App xuống component con</h2>
+  <table>
+    <thead><tr><th>Component</th><th>Prop</th><th>Kiểu</th><th>Giá trị App truyền</th><th>Mục đích</th></tr></thead>
+    <tbody>
+      <tr><td>SearchForm</td><td><code>onChangeValue</code></td><td>function(string)</td><td><code>setKeyword</code></td><td>Mỗi lần gõ, gọi hàm để cập nhật <code>kw</code> ở App</td></tr>
+      <tr><td>AddUser</td><td><code>onAdd</code></td><td>function(object)</td><td><code>setNewUser</code></td><td>Gửi người dùng vừa nhập lên App</td></tr>
+      <tr><td rowspan="3">ResultTable</td><td><code>keyword</code></td><td>string</td><td><code>kw</code></td><td>Từ khóa để lọc theo name, username</td></tr>
+      <tr><td><code>user</code></td><td>object hoặc null</td><td><code>newUser</code></td><td>Người dùng mới cần thêm vào bảng (<code>null</code> nghĩa là không có)</td></tr>
+      <tr><td><code>onAdded</code></td><td>function()</td><td><code>() =&gt; setNewUser(null)</code></td><td>Báo App đã thêm xong để xóa <code>newUser</code>, tránh thêm lặp</td></tr>
+    </tbody>
+  </table>
+
+  <h2>4. Lỗi gặp phải trong quá trình code</h2>
+  <p>Hai lỗi dưới đây mình đã chạy lại bản code sai trên trình duyệt để xác nhận hiện tượng.</p>
+
+  <h3>Lỗi 1 (Warning trong Console): trùng key khi thêm người dùng sau khi xóa</h3>
+  <div class="err"><b>Thông báo:</b><br>
+    <code>Warning: Encountered two children with the same key, `10`. Keys should be unique so that components maintain their identity across updates.</code><br>
+    <b>Hiện tượng:</b> Xóa người dùng đầu tiên (id 1), sau đó thêm người dùng mới. Cột ID hiện <code>2,3,4,5,6,7,8,9,10,10</code>: hai dòng cùng ID 10.</div>
+  <p><b>Nguyên nhân:</b> Code ban đầu đặt id cho người dùng mới là <code>prev.length + 1</code>. Danh sách có 10 người, xóa 1 còn 9, thêm mới thì id = 9 + 1 = 10, trùng với người cuối cùng (id 10). React dùng <code>key={u.id}</code> để phân biệt các dòng nên báo trùng, và việc sửa/xóa theo id cũng có thể tác động nhầm dòng.</p>
+  <p><b>Cách sửa:</b> id mới = id lớn nhất hiện có + 1.</p>
+<pre>// Sai
+{ ...user, id: prev.length + 1 }
+
+// Đúng
+const nextId = prev.reduce((m, u) =&gt; Math.max(m, u.id), 0) + 1;
+return [...prev, { ...user, id: nextId }];</pre>
+  <div class="ok">Sau khi sửa, thêm sau khi xóa cho ID 11, không còn cảnh báo.</div>
+
+  <h3>Lỗi 2 (hiện tượng sai): bấm "Hủy" ở form thêm bị lỗi, và nút "Thêm" không mở được form</h3>
+  <div class="err"><b>Hiện tượng:</b> Với code <code>&lt;button onClick={setAdding(false)}&gt;Hủy&lt;/button&gt;</code>, bấm nút "Thêm" ở trên cùng thì form không hiện lên (mở ra rồi bị đóng ngay lập tức).</div>
+  <p><b>Nguyên nhân:</b> <code>onClick={setAdding(false)}</code> <b>gọi hàm ngay lúc render</b> và gán kết quả trả về (<code>undefined</code>) cho <code>onClick</code>, chứ không phải gán một hàm để chạy khi bấm. Khi <code>adding</code> chuyển thành <code>true</code>, React render khối form, chạy luôn <code>setAdding(false)</code> nên state bị đặt lại <code>false</code> và form biến mất. Nếu viết kiểu này với <code>setAdding(true)</code> thì sẽ rơi vào vòng lặp và React báo <code>Too many re-renders</code>.</p>
+  <p><b>Cách sửa:</b> truyền một hàm (arrow function), để hàm chỉ chạy khi có sự kiện click.</p>
+<pre>// Sai: gọi ngay khi render
+&lt;button onClick={setAdding(false)}&gt;Hủy&lt;/button&gt;
+
+// Đúng: truyền hàm, chạy khi bấm
+&lt;button onClick={() =&gt; setAdding(false)}&gt;Hủy&lt;/button&gt;</pre>
+  <div class="ok">Sau khi sửa, "Thêm" mở được form và "Hủy" đóng form bình thường.</div>
+
+  <h2>5. Kiểm thử chức năng</h2>
+  <table>
+    <thead><tr><th>Chức năng</th><th>Cách kiểm tra</th><th>Kết quả</th></tr></thead>
+    <tbody>
+      <tr><td>Read</td><td>Mở trang, bảng tải 10 người dùng</td><td>Đạt</td></tr>
+      <tr><td>Tìm kiếm</td><td>Gõ <code>bret</code></td><td>Chỉ còn 1 dòng (Leanne Graham)</td></tr>
+      <tr><td>Xóa</td><td>Bấm Xóa dòng đầu</td><td>Còn 9 dòng</td></tr>
+      <tr><td>Thêm</td><td>Nhập Name, Username, bấm Thêm</td><td>Dòng mới ở cuối, id không trùng</td></tr>
+      <tr><td>Sửa</td><td>Sửa Name rồi Lưu</td><td>Bảng cập nhật; khi chưa bấm Lưu thì bảng không đổi (deep copy)</td></tr>
+    </tbody>
+  </table>
+</body>
+</html>
